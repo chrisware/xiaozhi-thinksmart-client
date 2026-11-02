@@ -96,10 +96,10 @@ def noise_floor(n, seed):
     return rng.normal(0, 10 ** (NOISE_DB / 20), n)
 
 
-def clips(kind):
+def clips(kind, language='zh'):
     """{sentence: [paths]} for one kind."""
     out = collections.defaultdict(list)
-    meta = {s.id: s for s in sentences() if s.kind == kind}
+    meta = {s.id: s for s in sentences(language) if s.kind == kind}
     for f in sorted((DATA / 'tts').glob('*.wav')):
         sid = f.name.split('~')[0]
         if sid in meta:
@@ -112,7 +112,7 @@ def background(kind, n, db, seed):
     if kind in ('music', 'program'):
         parts = [at_rms(read_wav(f), db) for f in program_files(kind)]
     else:
-        files = [f for fs in clips('talk').values() for f in fs]
+        files = [f for fs in clips('talk', args.language).values() for f in fs]
         rng.shuffle(files)
         parts = []
         for f in files[:400]:
@@ -137,7 +137,7 @@ def run_stream(x, args):
     from thinksmart_client import kws as kws_mod
     clock = Clock()
     kws_mod.time = clock
-    model = str(CLIENT / 'models' / 'kws-zh')
+    model = str(CLIENT / 'models' / args.model_dir)
     if args.hangover:
         kws_mod.HANGOVER = args.hangover
     k = kws_mod.Kws(model, json.loads(args.words), args.score, args.threshold, args.paths, args.gain)
@@ -166,7 +166,7 @@ def make_verifier(args):
     if not args.verify:
         return None
     from thinksmart_client import wake_verify
-    return wake_verify.make(args.verify, json.loads(args.words))
+    return wake_verify.make(args.verify, json.loads(args.words), language=args.language)
 
 
 def accepted(h):
@@ -181,7 +181,7 @@ def pos_job(job):
     args.tag = cond
     rng = np.random.default_rng(hash(cond) % (1 << 30))
     parts, spans, pos = [np.zeros(RATE)], [], RATE
-    for s, files in clips('pos').items():
+    for s, files in clips('pos', args.language).items():
         for f in files:
             x = read_wav(f)
             if room:
@@ -252,23 +252,30 @@ def real_job(job):
 
 
 def main():
+    # the client's own per-language config, so a bare run measures what ships (language=en)
+    from thinksmart_client import config
+    lang_probe = argparse.ArgumentParser(add_help=False)
+    lang_probe.add_argument('--lang', choices=sorted(set(['en']) | set(config.LANGUAGE_DEFAULTS)),
+                            default=config.DEFAULTS['language'])
+    d = config.for_language(lang_probe.parse_known_args()[0].lang)
     p = argparse.ArgumentParser()
-    from thinksmart_client.config import DEFAULTS
-    # defaults: the client's own config, so a bare run measures what ships
-    p.add_argument('--score', type=float, default=DEFAULTS['kws_score'])
-    p.add_argument('--threshold', type=float, default=DEFAULTS['kws_threshold'])
-    p.add_argument('--paths', type=int, default=DEFAULTS['kws_paths'])
-    p.add_argument('--words', default=json.dumps(DEFAULTS['wake_words'], ensure_ascii=False), help='JSON list')
+    p.add_argument('--lang', default=d['language'], help='wake word language (model + defaults)')
+    p.add_argument('--score', type=float, default=d['kws_score'])
+    p.add_argument('--threshold', type=float, default=d['kws_threshold'])
+    p.add_argument('--paths', type=int, default=d['kws_paths'])
+    p.add_argument('--words', default=json.dumps(d['wake_words'], ensure_ascii=False), help='JSON list')
     p.add_argument('--verify', default='', help="second stage, 'asr:<model dir>' (the client's 'hub' needs the device)")
-    p.add_argument('--gain', type=float, default=DEFAULTS['kws_gain_db'], help='dB in front of the wake word model')
+    p.add_argument('--gain', type=float, default=d['kws_gain_db'], help='dB in front of the wake word model')
     p.add_argument('--hangover', type=int, default=0, help='override kws.HANGOVER (batches)')
     p.add_argument('--only', default='', help='comma list of conditions / neg / real / programs')
     p.add_argument('--out', default='', help='write all rows as JSON here')
     p.add_argument('--dump', default='', help='save the audio of hits the second stage rejected here')
     args = p.parse_args()
+    args.language = args.lang
+    args.model_dir = d['kws_model_dir']
     conds = [c for c in POS_CONDITIONS if c not in ('music', 'program') or program_files(c)]
     want = set(args.only.split(',')) if args.only else set(conds) | {'neg'}
-    negs = [f for kind in ('conf', 'talk') for fs in clips(kind).values() for f in fs]
+    negs = [f for kind in ('conf', 'talk') for fs in clips(kind, args.lang).values() for f in fs]
     rng = np.random.default_rng(0)
     rng.shuffle(negs)
     slices = [(list(negs[i::8]), i, args) for i in range(8)] if 'neg' in want else []

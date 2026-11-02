@@ -194,7 +194,7 @@ def detect(x):
     from thinksmart_client import config, kws as kws_mod
     clock = Clock()
     kws_mod.time = clock
-    d = {**config.DEFAULTS, **TUNE}
+    d = {**config.for_language('zh'), **TUNE}   # echo experiments ran with the Chinese wake word
     k = kws_mod.Kws(str(CLIENT / 'models' / 'kws-zh'), d['wake_words'], d['kws_score'], d['kws_threshold'],
                     d['kws_paths'], d['kws_gain_db'])
     hits = []

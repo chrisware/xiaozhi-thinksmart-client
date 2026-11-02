@@ -21,7 +21,7 @@ import numpy as np
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from thinksmart_client import kws as kws_mod, wake_verify  # noqa: E402
-from thinksmart_client.config import DEFAULTS  # noqa: E402
+from thinksmart_client import config  # noqa: E402
 
 
 class Clock:
@@ -33,11 +33,13 @@ class Clock:
 
 def main():
     p = argparse.ArgumentParser()
+    p.add_argument('--lang', default=config.DEFAULTS['language'], help='wake word language')
     p.add_argument('--verify', default='')
     p.add_argument('--threads', type=int, default=1, help='for --verify asr:<model dir>')
-    p.add_argument('--gain', type=float, default=DEFAULTS['kws_gain_db'])
+    p.add_argument('--gain', type=float, default=config.DEFAULTS['kws_gain_db'])
     p.add_argument('wavs', nargs='+')
     args = p.parse_args()
+    d = config.for_language(args.lang)
     parts = []
     for f in args.wavs:
         with wave.open(f) as w:
@@ -46,13 +48,13 @@ def main():
     x = np.concatenate(parts)
     clock = Clock()
     kws_mod.time = clock
-    model = str(pathlib.Path(__file__).resolve().parent / 'models' / 'kws-zh')
-    k = kws_mod.Kws(model, DEFAULTS['wake_words'], DEFAULTS['kws_score'], DEFAULTS['kws_threshold'],
-                    DEFAULTS['kws_paths'], args.gain)
+    model = str(pathlib.Path(__file__).resolve().parent / 'models' / d['kws_model_dir'])
+    k = kws_mod.Kws(model, d['wake_words'], d['kws_score'], d['kws_threshold'], d['kws_paths'], args.gain)
     if args.verify.startswith('asr:'):
-        verifier = wake_verify.Verifier(wake_verify.LocalChecker(args.verify[4:], args.threads), DEFAULTS['wake_words'])
+        verifier = wake_verify.Verifier(wake_verify.LocalChecker(args.verify[4:], args.threads),
+                                        d['wake_words'], args.lang)
     else:
-        verifier = wake_verify.make(args.verify, DEFAULTS['wake_words'], DEFAULTS['hub_http'])
+        verifier = wake_verify.make(args.verify, d['wake_words'], d['hub_http'], args.lang)
     cpu = 0.0
     checks = []
     for i in range(0, len(x) - 319, 320):

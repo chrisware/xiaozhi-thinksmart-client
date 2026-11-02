@@ -1,6 +1,6 @@
 # xiaozhi-thinksmart-client
 
-联想 ThinkSmart View（CD-18781Y）上的语音客户端：本地唤醒词「小麦小麦」、回声消除、按小智协议连 [xiaozhi-hub-server](https://github.com/justhalfbit/xiaozhi-hub-server)，并在 `127.0.0.1:8090` 提供展示屏上的对话界面。
+联想 ThinkSmart View（CD-18781Y）上的语音客户端：本地唤醒词（英文默认 Hey Computer，中文「小麦小麦」，`language` 设置切换）、回声消除、按小智协议连 [xiaozhi-hub-server](https://github.com/justhalfbit/xiaozhi-hub-server)，并在 `127.0.0.1:8090` 提供展示屏上的对话界面。
 
 它是 [thinksmart-ubuntu-image](https://github.com/justhalfbit/thinksmart-ubuntu-image) 系统镜像的一部分，刷机和安装见那边的 README；装好的设备在设置页「软件更新」里从本仓库的 Release 在线更新。
 
@@ -22,7 +22,7 @@
 | `thinksmart_client/opus.py` | 系统 libopus 的 ctypes 封装 |
 | `thinksmart_client/web.py` | 页面、事件流（SSE）、按钮接口 |
 | `web/` | 界面：正式版是 `v2/`（带表情的光球，首页 `/` 和 `/v2`），第一版 `index.html`、`app.css`、`app.js` 留在 `/v1`；`test/` 是 GPU 排查用的测试页；另有提示音、厂商图标 |
-| `models/kws-zh/` | 唤醒词模型 |
+| `models/kws-en/`、`models/kws-zh/` | 唤醒词模型（英文 / 中文，`language` 选） |
 | `deploy/thinksmart-client.service` | 系统服务 |
 
 ## 接口（只监听本机）
@@ -40,6 +40,7 @@
 
 - `thinksmart_client/webrtc_apm/`：py-xiaozhi 的 WebRTC APM ctypes 封装和 arm64 库，MIT（`LICENSE-py-xiaozhi`）
 - `models/kws-zh/`：sherpa-onnx 中文唤醒词模型（wenetspeech），Apache-2.0
+- `models/kws-en/`：sherpa-onnx 英文唤醒词模型（gigaspeech），Apache-2.0
 - `web/logos/`：LobeHub icons 1.95.1，MIT
 - 依赖：numpy、sounddevice、soxr、websockets、aiohttp、sherpa-onnx
 

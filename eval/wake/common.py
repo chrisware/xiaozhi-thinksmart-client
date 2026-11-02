@@ -15,9 +15,11 @@ RATE = 16000
 Sentence = collections.namedtuple('Sentence', 'kind id text label')
 
 
-def sentences():
+def sentences(language='zh'):
+    """Rows of sentences.tsv (zh) or sentences_<language>.tsv."""
+    name = 'sentences.tsv' if language == 'zh' else f'sentences_{language}.tsv'
     out = []
-    for line in (HERE / 'sentences.tsv').read_text().splitlines():
+    for line in (HERE / name).read_text().splitlines():
         if line and not line.startswith('#'):
             parts = line.split('\t')
             out.append(Sentence(parts[0], parts[1], parts[2], parts[3] if len(parts) > 3 else None))

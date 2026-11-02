@@ -22,6 +22,8 @@ Checkers (config 'wake_verify'):
   'hub'        the hub's own recogniser (POST /kiosk/asr, patch-hub.py): no extra memory here
   'asr:<dir>'  a sherpa-onnx offline model in this process (evaluation)
   ''           off
+
+With language=en the second look compares English words instead of pinyin (EnglishMatcher below).
 """
 import json
 import logging
@@ -124,6 +126,70 @@ class Matcher:
             return True, 'unclear'
         return False, 'other speech'
 
+
+EN_WORDS = re.compile(r"[a-z0-9']+")
+
+
+def _edit1(a, b):
+    """True when a and b differ by at most one edit (one insert, delete or replace)."""
+    if abs(len(a) - len(b)) > 1:
+        return False
+    if len(a) > len(b):
+        a, b = b, a
+    i = 0
+    while i < len(a) and a[i] == b[i]:
+        i += 1
+    if i == len(a):
+        return True                      # a is a prefix of b (one letter longer at most)
+    if len(a) == len(b):
+        return a[i + 1:] == b[i + 1:]    # one replacement
+    return a[i:] == b[i + 1:]            # one letter inserted into a
+
+
+class EnglishMatcher:
+    """The same second look for language=en: compare the words of the wake word (@label) with the
+    words of the recognised text, ignoring case and punctuation. A word counts when it is the same,
+    when one is a prefix of the other from 4 letters on ("computers" for "computer"), or when it is
+    one edit away with the same first letter (the recogniser may write "hay" for "hey"; "they" is
+    not a match, so everyday "they computer" phrasing doesn't wake).
+    In order:
+    1. all words of a wake word heard next to each other -> wake;
+    2. nothing recognised -> wake: the recogniser is unsure, not the wake word model wrong (the
+       recogniser itself failing is handled by Verifier, which fails open too);
+    3. the start of a wake word ("hey") without the rest -> ignore: "hey there" was meant for a
+       person; one word of a sentence heard out of context is not a wake.
+    4. other speech -> ignore.
+    Unlike pinyin there is no name-only rule: 小麦 alone barely occurs in Chinese speech, "computer"
+    occurs all the time ("turn off the computer"), so the whole phrase must be there.
+    """
+
+    def __init__(self, wake_words):
+        self.labels = [w.split('@')[-1].strip() for w in wake_words]
+        self.words = [EN_WORDS.findall(label.lower()) for label in self.labels]
+
+    @staticmethod
+    def _same(heard, want):
+        if heard == want or (heard[:1] == want[:1] and _edit1(heard, want)):
+            return True
+        return min(len(heard), len(want)) >= 4 and (heard.startswith(want) or want.startswith(heard))
+
+    def judge(self, text):
+        """(wake?, why); see the class docstring for the rules."""
+        heard = EN_WORDS.findall((text or '').lower())
+        for label, want in zip(self.labels, self.words):
+            if not want:
+                continue
+            for start in range(len(heard) - len(want) + 1):
+                if all(self._same(h, w) for h, w in zip(heard[start:start + len(want)], want)):
+                    return True, label
+        if not heard:
+            return True, 'unclear'
+        firsts = {w[0] for w in self.words if w}
+        if any(self._same(h, w) for h in heard for w in firsts):
+            return False, 'wake sound without the rest'
+        return False, 'other speech'
+
+
 class HubChecker:
     """Recognise with the hub's own speech recogniser (it is already loaded there)."""
 
@@ -183,9 +249,9 @@ class LocalChecker:
 
 
 class Verifier:
-    def __init__(self, checker, wake_words):
+    def __init__(self, checker, wake_words, language='zh'):
         self.checker = checker
-        self.matcher = Matcher(wake_words)
+        self.matcher = (EnglishMatcher(wake_words) if language == 'en' else Matcher(wake_words))
 
     def check(self, audio, label):
         """{'ok': is the wake word really there, 'text': what was recognised}. Fails open: if the
@@ -206,11 +272,11 @@ class Verifier:
         return {'ok': ok, 'text': text, 'why': why}
 
 
-def make(spec, wake_words, hub_http='http://127.0.0.1:16688'):
+def make(spec, wake_words, hub_http='http://127.0.0.1:16688', language='zh'):
     if not spec:
         return None
     if spec == 'hub':
-        return Verifier(HubChecker(hub_http), wake_words)
+        return Verifier(HubChecker(hub_http), wake_words, language)
     if spec.startswith('asr:'):
-        return Verifier(LocalChecker(spec[4:]), wake_words)
+        return Verifier(LocalChecker(spec[4:]), wake_words, language)
     raise ValueError(f'unknown wake_verify {spec!r}')

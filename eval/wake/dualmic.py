@@ -5,7 +5,8 @@ import numpy as np, soxr
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, ROOT)
 from thinksmart_client import kws as kws_mod
-from thinksmart_client.config import DEFAULTS as C
+from thinksmart_client import config
+C = config.for_language('zh')   # this experiment ran with the Chinese wake word
 
 class Clock:
     t = 0.0

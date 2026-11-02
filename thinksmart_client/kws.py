@@ -1,4 +1,5 @@
-"""Wake word spotting with sherpa-onnx (open vocabulary: keywords are written as pinyin tokens)."""
+"""Wake word spotting with sherpa-onnx (open vocabulary: keywords are written as the model's
+tokens — pinyin for the Chinese model, BPE for the English one — then @label; see config.py)."""
 import collections
 import logging
 import tempfile
