@@ -61,7 +61,7 @@ async def test_power_off_ends_a_conversation_first(monkeypatch):
 async def test_no_power_off_during_an_update(monkeypatch):
     c, ran, events = make_client(monkeypatch, {'enabled': True, 'job': {'state': 'downloading'}})
     r = await c.power_off()
-    assert not r['ok'] and '更新' in r['error']
+    assert not r['ok'] and 'update' in r['error']
     await asyncio.sleep(0.05)
     assert ran == [('systemctl', 'is-active', 'thinksmart-update-run.service', 'thinksmart-update-boot.service')]
     assert not any(k == 'power' for k, _ in events)

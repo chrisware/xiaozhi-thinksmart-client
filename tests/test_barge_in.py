@@ -53,6 +53,7 @@ class FakeHub:
 def make_client():
     c = app.Client.__new__(app.Client)
     c.cfg = {'follow_up_seconds': 10}
+    c.language, c.wake_label = 'en', 'Hey Computer'
     c.events = app.Events()
     c.state = 'idle'
     c.uploading = False
@@ -276,7 +277,7 @@ async def test_hub_recognised_nothing_while_waiting_for_text():
     c.set_state('thinking')
     assert c.status()['recognising']
     await c._on_json({'type': 'vad', 'state': 'empty'})
-    assert c.state == 'idle' and not c.awaiting_text and shown == ['没听清，可以再说一次「小麦小麦」']
+    assert c.state == 'idle' and not c.awaiting_text and shown == ['Sorry, I didn\'t catch that — say «Hey Computer» again']
 
 
 @pytest.mark.asyncio
@@ -300,7 +301,7 @@ async def test_deadline_does_not_wait_when_the_hub_answered_everything():
     await c._on_json({'type': 'vad', 'state': 'empty'})
     c.deadline = time.monotonic() - 1
     await tick(c)
-    assert c.state == 'idle' and not c.awaiting_text and shown == ['没听清，可以再说一次「小麦小麦」']
+    assert c.state == 'idle' and not c.awaiting_text and shown == ['Sorry, I didn\'t catch that — say «Hey Computer» again']
 
 
 @pytest.mark.asyncio
@@ -325,4 +326,4 @@ async def test_push_to_talk_with_nothing_recognised_ends_at_once():
     await c.ptt_stop()
     assert c.state == 'thinking' and c.status()['recognising']
     await c._on_json({'type': 'vad', 'state': 'empty'})
-    assert c.state == 'idle' and shown == ['没听清，可以再说一次「小麦小麦」']
+    assert c.state == 'idle' and shown == ['Sorry, I didn\'t catch that — say «Hey Computer» again']

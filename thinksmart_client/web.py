@@ -103,7 +103,7 @@ def make_app(client: Client):
 
     async def update_install(request):
         if client.state != 'idle':
-            return web.json_response({'ok': False, 'error': '对话结束后再更新'}, status=409)
+            return web.json_response({'ok': False, 'error': client.tr('update_needs_idle')}, status=409)
         body = await request.json()
         return web.json_response({'ok': update.request('install', str(body.get('version', '')))})
 

@@ -35,7 +35,7 @@ from pathlib import Path
 import aiohttp
 import numpy as np
 
-from . import config, mcp, sleep, update, wake_verify
+from . import config, i18n, mcp, sleep, update, wake_verify
 from .audio import OUT_RATE, Audio, load_wav
 from .device import DIM_LEVEL, Keys, Screen, normalize_screen_off
 from .hub import Hub
@@ -66,14 +66,19 @@ HISTORY_LIMIT = 50       # messages per model shown from the hub's saved convers
 MODEL_POLL = 30          # seconds between asking the hub for its models (changes made in its admin page)
 MODEL_RETRY = 3          # until the hub answers (it takes over a minute to start after a boot)
 
-# Hub vendor id -> (logo file, company). Unknown vendors are guessed from the model name.
+# Hub vendor id -> (logo file, company zh, company en). Unknown vendors are guessed from the model name.
 VENDORS = {
-    'claude': ('claude-color', 'Anthropic'), 'claude-code': ('claude-color', 'Anthropic'),
-    'claude_cli': ('claude-color', 'Anthropic'), 'openai': ('openai', 'OpenAI'),
-    'gemini': ('gemini-color', 'Google'), 'deepseek': ('deepseek-color', 'DeepSeek'),
-    'qwen': ('qwen-color', '阿里通义'), 'doubao': ('doubao-color', '字节豆包'),
-    'glm': ('zhipu-color', '智谱'), 'kimi': ('kimi-color', '月之暗面'),
-    'grok_bot': ('grok', 'Grok Bot'), 'grok': ('grok', 'xAI'),
+    'claude': ('claude-color', 'Anthropic', 'Anthropic'),
+    'claude-code': ('claude-color', 'Anthropic', 'Anthropic'),
+    'claude_cli': ('claude-color', 'Anthropic', 'Anthropic'),
+    'openai': ('openai', 'OpenAI', 'OpenAI'),
+    'gemini': ('gemini-color', 'Google', 'Google'),
+    'deepseek': ('deepseek-color', 'DeepSeek', 'DeepSeek'),
+    'qwen': ('qwen-color', '阿里通义', 'Alibaba Qwen'),
+    'doubao': ('doubao-color', '字节豆包', 'ByteDance Doubao'),
+    'glm': ('zhipu-color', '智谱', 'Zhipu AI'),
+    'kimi': ('kimi-color', '月之暗面', 'Moonshot Kimi'),
+    'grok_bot': ('grok', 'Grok Bot', 'Grok Bot'), 'grok': ('grok', 'xAI', 'xAI'),
 }
 BY_MODEL = [
     (('claude',), 'claude'), (('deepseek',), 'deepseek'), (('gemini',), 'gemini'),
@@ -82,12 +87,13 @@ BY_MODEL = [
 ]
 
 
-def describe(option):
+def describe(option, language='en'):
     vendor = option['vendor']
     if vendor not in VENDORS:
         low = (option.get('model') or '').lower()
         vendor = next((v for keys, v in BY_MODEL if any(k in low for k in keys)), vendor)
-    logo, company = VENDORS.get(vendor, ('', option.get('label', '')))
+    logo, zh, en = VENDORS.get(vendor, ('', option.get('label', ''), option.get('label', '')))
+    company = zh if language == 'zh' else en
     return {'kind': option['kind'], 'vendor': option['vendor'], 'label': option['label'],
             'entry': option['entry'], 'model': option.get('model', ''), 'logo': logo, 'company': company}
 
@@ -158,6 +164,9 @@ class Events:
 class Client:
     def __init__(self, cfg):
         self.cfg = cfg
+        # the wake phrase as the user says it, for the page and the "say it again" toast
+        self.wake_label = i18n.wake_label(cfg.get('wake_words', []))
+        self.language = cfg.get('language', 'en')
         self.events = Events()
         self.loop = None
         self.state = 'idle'
@@ -306,18 +315,22 @@ class Client:
                 'recognising': self.recognising or self.awaiting_text,
                 'mic': self.keys.mic_on, 'sleep': {**self.sleep, 'active': self.sleeping},
                 'brightness': self.brightness(), 'screen_off': self.screen_off,
-                'reports': self.reports}
+                'reports': self.reports, 'language': self.language, 'wake_label': self.wake_label}
+
+    def tr(self, key, **kw):
+        """A user-facing string in this client's language."""
+        return i18n.t(self.language, key, **kw)
 
     def mic_off_toast(self):
         if self.keys.mic_on:
             return False
         self.play('miss')
-        self.events.publish('toast', {'kind': 'info', 'text': '麦克风已关，拨开机身侧面的开关就能说话'})
+        self.events.publish('toast', {'kind': 'info', 'text': self.tr('mic_off_tip')})
         return True
 
     def _on_mic(self, on):
         log.info('mic switch: %s', 'on' if on else 'off')
-        self.events.publish('toast', {'kind': 'info', 'text': '麦克风已打开' if on else '麦克风已关'})
+        self.events.publish('toast', {'kind': 'info', 'text': self.tr('mic_on') if on else self.tr('mic_off')})
         if not on and self.uploading:
             asyncio.create_task(self.stop_uploading())
         else:
@@ -357,7 +370,7 @@ class Client:
         except Exception as e:
             log.warning('cannot reach the hub: %s', e)
             self.play('error')
-            self.events.publish('toast', {'kind': 'error', 'text': '连不上小智网关，请检查网关是否在运行'})
+            self.events.publish('toast', {'kind': 'error', 'text': self.tr('hub_unreachable')})
             self.set_state('idle')
             return False
         self.decoder = None
@@ -432,7 +445,7 @@ class Client:
         self.deadline = None
         if missed:
             self.play('miss')
-            self.events.publish('toast', {'kind': 'info', 'text': '没听清，可以再说一次「小麦小麦」'})
+            self.events.publish('toast', {'kind': 'info', 'text': self.tr('didnt_catch', wake=self.wake_label)})
         self.set_state('idle')
 
     async def abort(self, reason=None):
@@ -653,8 +666,8 @@ class Client:
                     # over without a word: the model and the hub's spoken apology both failed to reach
                     # their servers (no network yet after a boot, an outage); say so on the page
                     log.warning('the turn ended without a reply')
-                    self.events.publish('toast', {'kind': 'error', 'text': '网络还没连上，稍后再试' if not has_default_route()
-                                                  else '没收到回答，可能是网络或模型服务连不上，稍后再试'})
+                    self.events.publish('toast', {'kind': 'error', 'text': self.tr('no_network') if not has_default_route()
+                                                  else self.tr('no_reply')})
                 self.bot_msg = self.question = None
                 if self.listen_after_reply:
                     asyncio.create_task(self._listen_after_reply())
@@ -795,7 +808,7 @@ class Client:
             return {'ok': True}   # a second tap while the first one is still on its way
         job = update.read().get('job') or {}
         if job.get('state') in UPDATE_BUSY and await self._update_running():
-            return {'ok': False, 'error': '正在更新，更新完再关机'}
+            return {'ok': False, 'error': self.tr('update_busy_power')}
         self.powering_off = True
         self.events.publish('power', {'state': 'off'})   # cover the page before ending a conversation (up to 3 s)
         if self.hub.connected:
@@ -829,7 +842,7 @@ class Client:
             log.error('cannot halt: %s', failed)
             self.powering_off = False
             self.events.publish('power', {'state': 'failed'})
-            self.events.publish('toast', {'kind': 'error', 'text': '没能关机，请稍后再试'})
+            self.events.publish('toast', {'kind': 'error', 'text': self.tr('halt_failed')})
 
     async def clear_history(self, memory_only=False):
         """Clear every model's conversation on the hub (and the page). memory_only: just the summary
@@ -839,7 +852,7 @@ class Client:
                                                                 'memory_only': bool(memory_only)})
         except Exception as e:
             log.warning('cannot clear the chat history: %s', e)
-            return {'ok': False, 'error': '连不上小智网关'}
+            return {'ok': False, 'error': self.tr('hub_unreachable_short')}
         if result.get('ok') and not memory_only:
             self.threads = {}
             self.bot_msg = self.question = None
@@ -967,7 +980,7 @@ class Client:
         return True
 
     def _apply_models(self, data):
-        options = [describe(o) for o in data.get('options', [])]
+        options = [describe(o, self.language) for o in data.get('options', [])]
         models = {'current': next((o for o in options if o['entry'] == data.get('selected')), None),
                   'options': options}
         if models != self.models:

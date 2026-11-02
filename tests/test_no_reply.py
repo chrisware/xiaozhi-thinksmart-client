@@ -17,8 +17,9 @@ def toasts(c):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('online, text', [(False, '网络还没连上，稍后再试'),
-                                          (True, '没收到回答，可能是网络或模型服务连不上，稍后再试')])
+@pytest.mark.parametrize('online, text', [(False, 'Still offline — try again in a moment'),
+                                          (True, 'No answer came back — the network or the model service may be '
+                                                 'unreachable. Try again shortly')])
 async def test_turn_without_a_reply_is_reported(monkeypatch, online, text):
     monkeypatch.setattr(app, 'has_default_route', lambda: online)
     c = make_client()
