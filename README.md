@@ -4,6 +4,17 @@
 
 它是 [thinksmart-ubuntu-image](https://github.com/justhalfbit/thinksmart-ubuntu-image) 系统镜像的一部分，刷机和安装见那边的 README；装好的设备在设置页「软件更新」里从本仓库的 Release 在线更新。
 
+## Language / 语言
+
+`language`（用户配置 `~/.config/thinksmart-client/config.json`，默认 `"en"`）决定四件事：
+
+- **唤醒词**：`en` 用 gigaspeech 模型（`models/kws-en/`，BPE 关键词，默认 `Hey Computer`）；`zh` 用 wenetspeech 模型（`models/kws-zh/`，拼音关键词，默认「小麦小麦」）。换 `language` 时若没有自定义 `wake_words` / `kws_model_dir`，自动取该语言的默认值。
+- **界面文字**：屏幕页面（`web/v2/`、`/v1`）和客户端 toast / 报错（`thinksmart_client/i18n.py`），语言来自 `/events` 快照里的 `status.language` 与 `status.wake_label`。
+- **给模型的设备工具说明**（`thinksmart_client/mcp.py`）：英文界面配英文提示词，模型才听得懂「turn the volume down」。
+- **唤醒二次确认**（`wake_verify`）：`en` 比对识别文本里的英文单词，`zh` 比对拼音。
+
+改完重启客户端生效：`sudo systemctl restart thinksmart-client`。想换唤醒词，直接写 `wake_words`（格式见 `config.py` 注释）。
+
 ## 结构
 
 | 位置 | 作用 |
@@ -13,7 +24,7 @@
 | `thinksmart_client/audio.py` | 麦克风 16 kHz、扬声器 48 kHz，都走 PipeWire；回声消除只在对话中或刚播过声音时运行 |
 | `thinksmart_client/aec.py` | WebRTC APM 回声消除（改自 py-xiaozhi 的 AecEngine） |
 | `thinksmart_client/kws.py` | sherpa-onnx 唤醒词，单线程、40 ms 一批、安静时跳过（声音停后再解码 1 秒）、模型前加 10 dB 增益 |
-| `thinksmart_client/wake_verify.py` | 唤醒二次确认（默认关，`wake_verify: 'hub'` 打开）：命中后把最近 3 秒交给网关识别（`POST /kiosk/asr`），按拼音比对唤醒词；`pinyin.txt` 是它用的常用字拼音表（`eval/wake/make_pinyin.py` 生成） |
+| `thinksmart_client/wake_verify.py` | 唤醒二次确认（默认关，`wake_verify: 'hub'` 打开）：命中后把最近 3 秒交给网关识别（`POST /kiosk/asr`），按 `language` 比对唤醒词（`en` 比英文单词，`zh` 按拼音）；`pinyin.txt` 是拼音比对用的常用字表（`eval/wake/make_pinyin.py` 生成） |
 | `eval/wake/` | 唤醒评测：漏唤醒率、误唤醒率，见其中 README |
 | `thinksmart_client/hub.py` | 小智 WebSocket 协议（hello 只声明 `mcp`：不让网关一听到声音就打断回复） |
 | `thinksmart_client/mcp.py` | 给模型用的设备工具：音量、睡眠时段、屏幕亮度 |
