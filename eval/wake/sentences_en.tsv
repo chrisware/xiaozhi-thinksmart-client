@@ -1,0 +1,129 @@
+# kind	id	text	(label: the wake word a pos clip should wake with)
+# English counterpart of sentences.tsv; ids are prefixed e so clips can't collide with zh ones.
+# pos: should wake; conf: sounds like a wake word, must not wake; talk: everyday speech / TV, must not wake
+pos	ep1	Hey Computer	Hey Computer
+pos	ep2	Hey Computer, what's the weather like today	Hey Computer
+pos	ep3	Hey Computer, set a timer for ten minutes	Hey Computer
+pos	ep4	Hey Computer, play some music	Hey Computer
+pos	ep5	Hey Computer, what time is it	Hey Computer
+pos	ep6	Hey Computer, tell me a joke	Hey Computer
+conf	ec01	Hey commander, what are your orders
+conf	ec02	OK computer, log the error
+conf	ec03	Hello computer, are you there
+conf	ec04	Hey, can you compute the total
+conf	ec05	The computer is in the study
+conf	ec06	Turn off the computer before bed
+conf	ec07	Hey colleague, nice work
+conf	ec08	His computer crashed this morning
+conf	ec09	Hey, how's the weather today
+conf	ec10	Somebody's computer keeps beeping
+conf	ec11	Hey cousin, long time no see
+conf	ec12	That's a neat computer mouse
+conf	ec13	Hey, I'd like a computer desk
+conf	ec14	The computers need updating this week
+conf	ec15	Hey, could you close the door
+conf	ec16	Hey, compare these two photos
+conf	ec17	We need a new computer monitor
+conf	ec18	Hey, come over here a second
+conf	ec19	Computer says no
+conf	ec20	Hey Cynthia, have you seen my keys
+talk	et01	Good morning, did you sleep well
+talk	et02	The weather's going to clear up this afternoon
+talk	et03	I'll put the kettle on
+talk	et04	Did you watch the rugby last night
+talk	et05	We need to pick up the kids from school
+talk	et06	The power bill came in higher than usual
+talk	et07	I left my phone on the kitchen counter
+talk	et08	Can you pass me the salt
+talk	et09	It's boiling hot outside today
+talk	et10	The train was late again this morning
+talk	et11	Let's go to the beach this weekend
+talk	et12	Have you seen my sunglasses anywhere
+talk	et13	The dog needs a walk before dinner
+talk	et14	I'll have the chicken curry, please
+talk	et15	Sorry, could you say that again
+talk	et16	The wifi in the back room is very patchy
+talk	et17	Mum's coming over on Sunday
+talk	et18	Don't forget to take out the rubbish
+talk	et19	This song is stuck in my head
+talk	et20	Did you feed the cat this morning
+talk	et21	I need to book a dentist appointment
+talk	et22	The traffic on the motorway was terrible
+talk	et23	That film was a bit long, don't you think
+talk	et24	We're out of milk, I'll get some tomorrow
+talk	et25	It's supposed to rain all week
+talk	et26	Can you hear that beeping noise
+talk	et27	I'll drive, you can navigate
+talk	et28	The oven timer went off ages ago
+talk	et29	She sang the national anthem beautifully
+talk	et30	Mind the step, it's broken
+talk	et31	What time does the shop close tonight
+talk	et32	My back is killing me after the move
+talk	et33	Let's meet at the cafe on the corner
+talk	et34	The news said house prices dropped again
+talk	et35	Could you turn that radio down a bit
+talk	et36	I think we're lost, try turning left
+talk	et37	The kids are making too much noise
+talk	et38	Thanks for helping with the boxes
+talk	et39	This chair is wobbly, stand still
+talk	et40	Have you locked the front door
+talk	et41	I'm making a salad, do you want some
+talk	et42	The cricket match got rained off
+talk	et43	Remind me to call the plumber back
+talk	et44	These shoes are rubbing my heel
+talk	et45	The sunrise over the harbour was stunning
+talk	et46	Let's leave early to beat the traffic
+talk	et47	He told the same joke three times
+talk	et48	I'll grab the takeout on my way home
+talk	et49	The car needs petrol before the trip
+talk	et50	Why is the light flickering in here
+talk	et51	She's starting school next Monday
+talk	et52	The fish was overcooked, I sent it back
+talk	et53	Could you keep the noise down after ten
+talk	et54	We ran out of printer paper again
+talk	et55	The cat knocked the glass off the table
+talk	et56	I'll water the garden in the evening
+talk	et57	That was a close one, nearly crashed
+talk	et58	Put your jacket on, it's chilly out
+talk	et59	The electricity went out during the storm
+talk	et60	Can you check if the stove is off
+talk	et61	This episode is really good, watch it
+talk	et62	He runs five kilometres every morning
+talk	et63	We should repaint the hallway soon
+talk	et64	The queue at the supermarket was huge
+talk	et65	Did you hear the news about the factory
+talk	et66	I'm on my way, ten minutes maybe
+talk	et67	That music is a bit loud for me
+talk	et68	Let's have breakfast outside today
+talk	et69	The bike has a flat back tyre
+talk	et70	She won her race without breaking a sweat
+talk	et71	I left the charging cable in the car
+talk	et72	The neighbours are having another party
+talk	et73	Boil the pasta for about ten minutes
+talk	et74	Don't forget your umbrella, it's drizzling
+talk	et75	He drives an old yellow holden
+talk	et76	The baby finally fell asleep at six
+talk	et77	Can you hear me at the back there
+talk	et78	Our flight boards at gate twelve
+talk	et79	The garden needs mowing badly this weekend
+talk	et80	I'll have a flat white, thanks
+talk	et81	Did you lock the bike up outside
+talk	et82	The heater is making a funny noise
+talk	et83	She told me the whole story twice
+talk	et84	The road was flooded after the rain
+talk	et85	Let's watch something else tonight
+talk	et86	I need to charge my phone, it's nearly dead
+talk	et87	The team played better in the second half
+talk	et88	Put the plates in the dishwasher please
+talk	et89	It's nearly Christmas already
+talk	et90	The kettle boiled over onto the stove
+talk	et91	Have you got a dollar for the parking meter
+talk	et92	The wind is howling outside tonight
+talk	et93	He fixed the shelf with just two screws
+talk	et94	The bread rose too much in the oven
+talk	et95	I'll sort it out in the morning
+talk	et96	The lake was perfectly still this morning
+talk	et97	Make sure the gate is latched behind you
+talk	et98	The soup needs more salt and pepper
+talk	et99	We'll take the short way through the park
+talk	et100	Goodnight, see you in the morning
