@@ -32,6 +32,9 @@ uv run --no-project --with sherpa-onnx==2.0.1 --with numpy python eval/wake/run.
 # 加二次确认（用网关同款 X-ASR 在 Mac 上模拟）
 uv run --no-project --with sherpa-onnx==2.0.1 --with numpy python eval/wake/run.py \
     --verify asr:$HOME/thinksmart-wake-eval/models/sherpa-onnx-x-asr-zipformer-transducer-zh-en-punct-int8-2026-06-03
+# 英文（--lang en = models/kws-en + config.py 的英文默认参数 + sentences_en.tsv 的声音）
+uv run --no-project -p 3.12 --with edge-tts --with numpy python eval/wake/gen_tts.py --lang en
+uv run --no-project -p 3.12 --with sherpa-onnx==2.0.1 --with numpy python eval/wake/run.py --lang en
 ```
 
 `device_bench.py` 在设备上量唤醒模型 CPU 和网关确认的往返耗时（用法见文件头）。
@@ -96,3 +99,56 @@ TS_HOST=<设备IP> eval/wake/record_real.sh pos-xmxm-1m-n10 45
 | paraformer-zh-small | 365 | 3 | 0.84 秒 | +137 MB |
 | streaming-zipformer-small-ctc | 253 | 4 | 1.6 秒 | +76 MB |
 | zipformer-ctc-small | 140 | 11 | 1.4 秒 | +206 MB |
+
+## English (2026-11-02, "Hey Computer", synthetic voices)
+
+`--lang en` runs the same conditions through `models/kws-en` with the defaults from
+`config.for_language('en')`; the corpus comes from `sentences_en.tsv` (6 pos, 20 conf,
+100 talk) x 10 edge-tts voices (NZ, AU, US, GB) + 6 macOS `say` voices — 288 wake clips,
+0.24 h conf + 1.25 h talk.
+
+Miss rate (missed/clips), defaults score 2.0 threshold 0.25 paths 8 gain 20 hangover 60:
+
+| id | loud −20 | mid −40 | low −48 | near −30 | far −42+rev | soft −48+rev | tv |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| ep1 (wake phrase alone) | 6% | 8% | 27% | 10% | 38% | 81% | 27% |
+| ep2–ep6 (with a question) | 3–8% | 8–23% | 19–35% | 4–10% | 58–71% | 73–90% | 27–42% |
+| all | 7% | 14% | 27% | 8% | 60% | 84% | 33% |
+
+False wakes: everyday speech 0 in 1.25 h (0 per hour); conf 26/320 = 8.1% — every one of
+them a sentence that says "computer" right after a hey-like syllable ("OK computer",
+"hey, I'd like a computer desk", "hey compare these two photos"). wake_verify
+(`EnglishMatcher`) rejects all of those shapes.
+
+What the sweep found:
+
+- **hangover 60 is what matters.** The English model needs ~2 s of decoding after a keyword
+  that ends in silence: with the zh value (25) the isolated phrase was missed 52% of the time
+  even at −20 dBFS; with 60, 6%. That is why `kws_hangover` became a setting (en 60, zh 25).
+- **gain 20** (zh default 10) helps the quiet end: near 10% -> 8%, far 66% -> 60%, soft 92% ->
+  84%; it adds false wakes only on "computer" sentences (6.6% -> 8.1%). gain 26 buys far 52%
+  but costs tv 39% and clips loud speech more; not shipped.
+- **threshold 0.25** stays: raising it costs far more true wakes than it removes false ones
+  (0.35: near 26% missed, conf still 5%; 0.5: near 64%).
+- The English model is weaker on quiet and distant speech than the Chinese one (far 60% vs
+  32% missed; near is equal). Across-the-room waking **must be re-measured on the device**
+  (the real mic path is not this synthetic one); see the recording table below. If far-field
+  accuracy turns out poor there, openWakeWord is the heavier fallback (new runtime in kws.py).
+- US-accent voices were the hardest (they missed the isolated phrase even at −20 dBFS before
+  the hangover fix); NZ/AU voices are near the zh numbers.
+
+Real recordings to capture for English (device microphone, as the zh table above):
+
+| file | how | seconds |
+| --- | --- | --- |
+| `pos-heyc-1m-n10` | 1 m, normal voice, "Hey Computer" every 4 s, 10 times | 45 |
+| `pos-heyc-3m-n12` | across the room (~3 m), 12 times | 55 |
+| `pos-heyc-soft-n12` | 1 m, quiet (so as not to wake anyone), 12 times | 55 |
+| `pos-heyc-tv-n12` | TV on at normal volume, 1–2 m, 12 times | 55 |
+| `pos-heyc-question-n6` | 1 m, wake phrase + question in one go ("Hey Computer what's the weather"), 6 times | 60 |
+| `neg-confusable-en` | say each of ec01–ec20 once, normal voice | ~90 |
+| `neg-tv-30min` | English TV/podcast at normal volume, nobody speaking to the device | 30 min |
+
+New wake phrases: make the token line with `make_keyword.py`, then
+`run.py --lang en --words '["<line>"]' --only near,conf` and listen to what wakes — the model
+matches sounds, not spelling ("ok computer" wakes "hey computer" at every threshold tried).

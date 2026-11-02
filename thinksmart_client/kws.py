@@ -29,9 +29,13 @@ RECENT = 3.0  # seconds of audio kept for a second look at a hit (wake_verify.py
 
 
 class Kws:
-    def __init__(self, model_dir, keywords, score=2.0, threshold=0.25, paths=8, gain_db=0.0):
-        """keywords: lines like 'x iǎo m ài x iǎo m ài @小麦小麦'. gain_db: applied to what the model
-        hears (not to the quiet gate): the model misses more at low levels."""
+    def __init__(self, model_dir, keywords, score=2.0, threshold=0.25, paths=8, gain_db=0.0,
+                 hangover=None):
+        """keywords: lines like 'x iǎo m ài x iǎo m ài @小麦小麦' (pinyin) or
+        '▁HE Y ▁COMP U TER @Hey_Computer' (gigaspeech BPE). gain_db: applied to what the model
+        hears (not to the quiet gate): the model misses more at low levels. hangover: batches to
+        keep decoding after sound stops (the English model needs its ~2 s to finish reporting a
+        keyword that ends in silence: eval/wake)."""
         # sherpa-onnx only takes keywords from a file, and reads it here once
         with tempfile.NamedTemporaryFile('w', suffix='.txt') as kw_file:
             kw_file.write('\n'.join(keywords) + '\n')
@@ -51,6 +55,7 @@ class Kws:
             )
         self._stream = self._spotter.create_stream()
         self._gain = 10 ** (gain_db / 20)
+        self._hangover = HANGOVER if hangover is None else hangover
         self._last_hit = 0.0
         self._pending = []
         self._pending_n = 0
@@ -79,7 +84,7 @@ class Kws:
             if self._hang == 0 and self._preroll:
                 self._stream.accept_waveform(rate, np.concatenate(self._preroll) * self._gain)
                 self._preroll.clear()
-            self._hang = HANGOVER
+            self._hang = self._hangover
         elif self._hang == 0:
             self._preroll.append(batch)
             return None

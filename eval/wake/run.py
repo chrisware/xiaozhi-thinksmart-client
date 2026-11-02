@@ -107,12 +107,12 @@ def clips(kind, language='zh'):
     return out
 
 
-def background(kind, n, db, seed):
+def background(kind, n, db, seed, language='zh'):
     rng = np.random.default_rng(seed)
     if kind in ('music', 'program'):
         parts = [at_rms(read_wav(f), db) for f in program_files(kind)]
     else:
-        files = [f for fs in clips('talk', args.language).values() for f in fs]
+        files = [f for fs in clips('talk', language).values() for f in fs]
         rng.shuffle(files)
         parts = []
         for f in files[:400]:
@@ -138,9 +138,8 @@ def run_stream(x, args):
     clock = Clock()
     kws_mod.time = clock
     model = str(CLIENT / 'models' / args.model_dir)
-    if args.hangover:
-        kws_mod.HANGOVER = args.hangover
-    k = kws_mod.Kws(model, json.loads(args.words), args.score, args.threshold, args.paths, args.gain)
+    k = kws_mod.Kws(model, json.loads(args.words), args.score, args.threshold, args.paths,
+                    args.gain, args.hangover)
     verifier = make_verifier(args)
     hits = []
     block = 320
@@ -194,7 +193,7 @@ def pos_job(job):
     x = np.concatenate(parts)
     x = x + noise_floor(len(x), 1)
     if bg:
-        x = x + background(bg[0], len(x), bg[1], 2)
+        x = x + background(bg[0], len(x), bg[1], 2, args.language)
     hits = run_stream(x, args)
     rows = []
     for s, name, a, b in spans:
@@ -266,7 +265,7 @@ def main():
     p.add_argument('--words', default=json.dumps(d['wake_words'], ensure_ascii=False), help='JSON list')
     p.add_argument('--verify', default='', help="second stage, 'asr:<model dir>' (the client's 'hub' needs the device)")
     p.add_argument('--gain', type=float, default=d['kws_gain_db'], help='dB in front of the wake word model')
-    p.add_argument('--hangover', type=int, default=0, help='override kws.HANGOVER (batches)')
+    p.add_argument('--hangover', type=int, default=d['kws_hangover'], help='batches to keep decoding after sound stops')
     p.add_argument('--only', default='', help='comma list of conditions / neg / real / programs')
     p.add_argument('--out', default='', help='write all rows as JSON here')
     p.add_argument('--dump', default='', help='save the audio of hits the second stage rejected here')
@@ -336,10 +335,11 @@ def report(args, pos_rows, neg_parts, took):
             rejected = sum(r['stage1'] and not r['woke'] for r in pos_rows)
             print(f'second stage rejected {rejected} true wakes the first stage had caught')
     if neg_parts:
-        for kind, what in (('c', 'confusable sentences'), ('t', 'everyday speech / TV')):
-            seconds = sum(c['seconds'] for p in neg_parts for c in p['clips'] if c['name'][0] == kind)
-            n = sum(1 for p in neg_parts for c in p['clips'] if c['name'][0] == kind)
-            hits = [h for p in neg_parts for h in p['hits'] if h['clip'][0] == kind]
+        pre = 'e' if args.language == 'en' else ''   # sentence ids: c01/t01 (zh), ec01/et01 (en)
+        for kind, what in ((pre + 'c', 'confusable sentences'), (pre + 't', 'everyday speech / TV')):
+            seconds = sum(c['seconds'] for p in neg_parts for c in p['clips'] if c['name'].startswith(kind))
+            n = sum(1 for p in neg_parts for c in p['clips'] if c['name'].startswith(kind))
+            hits = [h for p in neg_parts for h in p['hits'] if h['clip'].startswith(kind)]
             woke = [h for h in hits if h['woke']]
             print(f'{what}: {n} sentences, {seconds / 3600:.2f} h; first stage {len(hits)} hits, '
                   f'false wakes {len(woke)} = {100 * len(woke) / n:.1f}% of sentences, '

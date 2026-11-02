@@ -191,7 +191,8 @@ class Client:
         self._send_q = None
         self.encoder = Encoder(16000, 1)
         self.kws = Kws(str(ROOT / 'models' / cfg['kws_model_dir']), cfg['wake_words'],
-                       cfg['kws_score'], cfg['kws_threshold'], cfg['kws_paths'], cfg['kws_gain_db'])
+                       cfg['kws_score'], cfg['kws_threshold'], cfg['kws_paths'], cfg['kws_gain_db'],
+                       cfg['kws_hangover'])
         self.verifier = wake_verify.make(cfg['wake_verify'], cfg['wake_words'], cfg['hub_http'],
                                          cfg['language'])
         self.backlog = None           # mic blocks since a wake word hit, uploaded once listening starts

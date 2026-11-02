@@ -49,7 +49,8 @@ def main():
     clock = Clock()
     kws_mod.time = clock
     model = str(pathlib.Path(__file__).resolve().parent / 'models' / d['kws_model_dir'])
-    k = kws_mod.Kws(model, d['wake_words'], d['kws_score'], d['kws_threshold'], d['kws_paths'], args.gain)
+    k = kws_mod.Kws(model, d['wake_words'], d['kws_score'], d['kws_threshold'], d['kws_paths'], args.gain,
+                    d['kws_hangover'])
     if args.verify.startswith('asr:'):
         verifier = wake_verify.Verifier(wake_verify.LocalChecker(args.verify[4:], args.threads),
                                         d['wake_words'], args.lang)

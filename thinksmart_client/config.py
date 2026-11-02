@@ -28,14 +28,23 @@ DEFAULTS = {
     # only: the model catches what a keyword sounds like, not what is written, so near phrases
     # (hey commander, ok computer) need checking with eval/wake before being added — say so here.
     'wake_words': ['▁HE Y ▁COMP U TER @Hey_Computer'],
-    'kws_score': 2.0,     # tuned per language with eval/wake: the English model woke at these
-    'kws_threshold': 0.25,  # defaults in all conditions except 'soft' (see eval/wake/README.md)
+    'kws_score': 2.0,     # same as zh; the 2026-11-02 sweep (eval/wake --lang en) saw raising
+    'kws_threshold': 0.25,  # the threshold cost more true wakes than it removed false ones: at
+    # 0.25 everyday speech (1.25 h of 100 sentences x 16 voices) never woke, and the confusable
+    # near-phrases that do wake ("OK computer", "hey ... computer desk") contain "computer" —
+    # wake_verify 'hub' blocks them; see eval/wake/README.md
     # beam width: with 2 a keyword easily loses its path before it is finished (哈喽阿满 woke only
     # 6/30, 你好小二 25/30 instead of 30/30); 8 costs ~6% more decoding CPU, only while there is sound
     'kws_paths': 8,
     # digital gain in front of the wake word model (not its quiet gate): it misses more at low
-    # levels; with 10 dB eval/wake missed 15% -> 7% at -30 dBFS, 39% -> 32% across the room (zh)
-    'kws_gain_db': 10,
+    # levels; zh: 10 dB improved eval/wake 15% -> 7% at -30 dBFS (kept); the English model likes
+    # more: eval/wake --lang en, 20 dB over 10 dB: near 10% -> 8% missed, far 66% -> 57%, and the
+    # false wakes it adds are all sentences that say "computer" close to a hey-like syllable
+    'kws_gain_db': 20,
+    # batches (40 ms each) to keep decoding after sound stops. Measured with eval/wake --lang en:
+    # the English model often needs over 2 s to report a keyword that ends in silence
+    # (isolated "Hey Computer" at -20 dBFS: 52% missed with 25, 4% with 60)
+    'kws_hangover': 60,
     'kws_model_dir': 'kws-en',
     # second look at each wake word hit (wake_verify.py): 'hub' asks the hub's speech recogniser
     # whether the wake word is really there, '' trusts the wake word model. Off for now: the hub
@@ -61,7 +70,8 @@ DEFAULTS = {
 LANGUAGE_DEFAULTS = {
     'zh': {'wake_words': ['x iǎo m ài x iǎo m ài @小麦小麦', 'h ā l óu x iǎo m ài @哈喽小麦',
                           'x iǎo m ài t óng x ué @小麦同学'],
-           'kws_score': 2.0, 'kws_threshold': 0.25, 'kws_model_dir': 'kws-zh'},
+           'kws_score': 2.0, 'kws_threshold': 0.25, 'kws_gain_db': 10, 'kws_hangover': 25,
+           'kws_model_dir': 'kws-zh'},
 }
 
 
