@@ -157,7 +157,11 @@ class Audio:
     def __init__(self, on_block):
         self.on_block = on_block          # called on the worker thread: on_block(block, wake_block), 20 ms
         self.player = Player()
-        self.aec = Aec(MIC_RATE, OUT_RATE)
+        try:
+            self.aec = Aec(MIC_RATE, OUT_RATE)
+        except Exception as e:   # dev hosts (a Mac: no macos webrtc_apm dylib, maybe no speexdsp):
+            log.warning('echo cancellation unavailable (%s); running without AEC', e)
+            self.aec = None      # the device always has the linux library, so behaviour there is unchanged
         self.mic_level = 0.0
         # Echo cancellation costs ~21% of a core, so it runs only during a conversation
         # (set by the client) or while something was played in the last few seconds. The
@@ -193,7 +197,8 @@ class Audio:
         if status and len(self.player.late) < 100:
             self.player.late.append(str(status))
         outdata[:] = self.player.pull(frames)
-        self.aec.feed_far(outdata)
+        if self.aec:
+            self.aec.feed_far(outdata)
 
     def _work(self):
         while True:
@@ -201,7 +206,7 @@ class Audio:
             self.last_in = time.monotonic()
             wake_block = None
             since_sound = time.monotonic() - self.player.last_sound
-            if self.aec_hold or since_sound < 3:
+            if self.aec and (self.aec_hold or since_sound < 3):
                 try:
                     block = self.aec.process_near(block)
                     if since_sound < LINEAR_AFTER:
@@ -209,7 +214,7 @@ class Audio:
                         self._echo += (np.mean(raw ** 2), np.mean(block ** 2), np.mean(wake_block ** 2), 1)
                 except Exception:
                     log.exception('echo cancellation failed')
-            else:
+            elif self.aec:
                 self.aec.skip_far()
             self.mic_level = float(np.sqrt(np.mean(block ** 2)))
             try:
