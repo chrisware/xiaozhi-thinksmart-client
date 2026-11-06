@@ -114,6 +114,34 @@ const STR = {
     ver_current: 'Current version {v}',
     period_join: '{a}. {b}',
     ago_now: 'just now', ago_min: '{n} min ago', ago_hour: '{n} h ago', ago_day: '{n} d ago',
+    // countdowns, alarms and reminders
+    ic_timer: 'Timer', ic_alarm: 'Alarm', ic_reminder: 'Reminder',
+    day_yesterday: 'Yesterday', day_today: 'Today', day_tomorrow: 'Tomorrow', day_after: 'In two days',
+    al_timer_sub: 'Countdown, rings {t}', snoozed: 'snoozed',
+    rem_spoken: 'read out when due', rem_ring_only: 'ring only (voice not ready)', rem_making: 'making the voice…',
+    alarm_paused: 'Clock not synced — alarms paused', n_items: '{n} set',
+    del: 'Delete', del_confirm: 'Sure?', deleted: 'Deleted',
+    alarm_empty: 'No alarms or reminders yet',
+    missed_off: 'the device was off', missed_reminder: 'rang 3 minutes, nobody stopped it',
+    missed_alarm: 'rang 10 minutes, nobody stopped it', missed_more: '+{n} more',
+    wd_join: ', ', note_join: '; ',
+    snooze_ok: "OK, I'll ring again in 10 minutes",
+    tone_coffee: 'Coffee Time', tone_morning: 'First Light', tone_bright: 'Bright Start',
+    tone_hop: 'Sunny Hop', tone_marimba: 'Morning Marimba',
+    demo_egg: 'Eggs', demo_wake: 'Wake up', demo_laundry: 'Hang the laundry', demo_meds: 'Take medicine',
+    demo_repeat: 'every weekday (Monday to Friday)',
+    vol_label: 'Device volume', alarm_vol_label: 'Alarm volume',
+    vol_note: 'Device volume is the volume the assistant speaks at — the same one the volume keys and ' +
+      'your voice change. Alarm volume is only for countdowns, alarms and reminders: a ring switches to ' +
+      'it and back when it ends; pressing the keys during a ring changes just that ring.',
+    alarms_head: 'Alarms and reminders',
+    alarm_warn: "The device clock isn't synced with the network yet — alarms pause and resume on their own",
+    alarm_say_hint: 'Say things like "{wake}, wake me at 7 tomorrow", "count down 5 minutes", "remind me to ' +
+      'hang the laundry in 10 minutes", "call me at 7:30 on workdays", "what alarms do I have", ' +
+      '"cancel tomorrow\'s alarm"',
+    tones_head: 'Ring tone', tone_tap: 'Tap to hear it',
+    ring_snooze: 'Snooze 10 minutes', ring_stop: 'Stop', ring_hint: 'You can also say «{wake}» to stop it',
+    missed_head: 'Missed alarms and reminders', missed_ok: 'Got it',
   },
   zh: {
     page_title: '小麦', brand: '小麦',
@@ -203,6 +231,32 @@ const STR = {
     ver_current: '当前版本 {v}',
     period_join: '{a}。{b}',
     ago_now: '刚刚', ago_min: '{n} 分钟前', ago_hour: '{n} 小时前', ago_day: '{n} 天前',
+    // countdowns, alarms and reminders
+    ic_timer: '倒计时', ic_alarm: '闹钟', ic_reminder: '提醒',
+    day_yesterday: '昨天', day_today: '今天', day_tomorrow: '明天', day_after: '后天',
+    al_timer_sub: '倒计时，{t} 响', snoozed: '再睡中',
+    rem_spoken: '到点念出来', rem_ring_only: '只响铃（没合成出语音）', rem_making: '正在合成语音',
+    alarm_paused: '时间未同步，闹钟暂停', n_items: '{n} 条',
+    del: '删除', del_confirm: '确认删除', deleted: '已删除',
+    alarm_empty: '还没有闹钟和提醒',
+    missed_off: '设备关着', missed_reminder: '提醒了 3 分钟没人停',
+    missed_alarm: '响了 10 分钟没人停', missed_more: '还有 {n} 条',
+    wd_join: '、', note_join: '；',
+    snooze_ok: '好的，10 分钟后再叫你',
+    tone_coffee: '咖啡时光', tone_morning: '晨曦', tone_bright: '元气早晨',
+    tone_hop: '阳光小跳跃', tone_marimba: '清晨木琴',
+    demo_egg: '煮鸡蛋', demo_wake: '起床', demo_laundry: '晾衣服', demo_meds: '吃药',
+    demo_repeat: '每个工作日（周一到周五）',
+    vol_label: '设备音量', alarm_vol_label: '闹钟音量',
+    vol_note: '设备音量是平时说话的音量，和音量键、语音调的是同一个。闹钟音量只管倒计时、闹钟和提醒：' +
+      '响铃时自动切过去，响完改回来；响铃时按音量键只调这一次。',
+    alarms_head: '闹钟和提醒',
+    alarm_warn: '设备时间还没和网络同步，闹钟暂停，同步后自动恢复',
+    alarm_say_hint: '直接说：「{wake}，明早 7 点叫我」「倒计时 5 分钟」「10 分钟后提醒我晾衣服」' +
+      '「工作日早上 7 点半叫我」「我有哪些闹钟」「取消明早的闹钟」',
+    tones_head: '铃声', tone_tap: '点一下试听',
+    ring_snooze: '再睡 10 分钟', ring_stop: '停止', ring_hint: '也可以喊「{wake}」停下',
+    missed_head: '错过的闹钟和提醒', missed_ok: '知道了',
   },
 };
 function tr(key, params) {
@@ -234,6 +288,7 @@ const ui = {
   models: { current: null, options: [] },
   thread: { entry: null, messages: [] },
   ptt: false,
+  alarms: { synced: true, items: [], missed: [], ringing: null, volume: 70, tone: 'coffee', tones: {} },
 };
 
 const SUGGEST = [
@@ -267,6 +322,8 @@ function tick() {
     : `${DAY[now.getDay()]} ${now.getDate()} ${MONTH[now.getMonth()]}`;
   const h = now.getHours();
   $('greet').textContent = tr((GREET[lang] || GREET.en).find(g => h < g[0])[1]);
+  $('ringTime').textContent = hm;
+  tickAlarms();
 }
 
 /* ---- the orb's corona: 48 bars around the orb, one shape per state ----
@@ -456,6 +513,7 @@ function renderStatus() {
   renderSettings();
   renderBright();
   renderScreenOff();
+  renderVol();
   renderUpdate();
 }
 
@@ -642,6 +700,165 @@ async function sendScreenOff(changes) {
 $('offSwitch').addEventListener('click', () => sendScreenOff({ enabled: !offSetting().enabled }));
 for (const b of $('offMinutes').children) b.addEventListener('click', () => sendScreenOff({ minutes: Number(b.dataset.m) }));
 
+/* ---- settings: volumes (the device's, which the keys and voice change too, and the alarms' own) ---- */
+// Same finger-following slider as the brightness: at most one change every 150 ms while dragging, the
+// last one on release; what the client says meanwhile doesn't move the thumb under the finger.
+function slider(id, numId, get, send) {
+  const el = $(id);
+  let edit = null, timer = null, sent = 0, drag = false;
+  function render() {
+    const v = edit === null ? get() : edit;
+    if (edit === null && v != null) el.value = v;
+    el.style.setProperty('--fill', (v == null ? 0 : v) + '%');
+    $(numId).textContent = v == null ? '' : v + '%';
+  }
+  function move(e) {
+    const r = el.getBoundingClientRect(), thumb = 48;
+    edit = Math.round(Math.max(0, Math.min(1, (e.clientX - r.left - thumb / 2) / (r.width - thumb))) * 100);
+    el.value = edit;
+    render();
+    clearTimeout(timer);
+    const go = () => { sent = Date.now(); send(edit); };
+    if (Date.now() - sent > 150) go();
+    else timer = setTimeout(go, 150);
+  }
+  el.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    drag = true;
+    try { el.setPointerCapture(e.pointerId); } catch (err) { /* keeps following without capture */ }
+    move(e);
+  });
+  el.addEventListener('pointermove', e => { if (drag) move(e); });
+  function drop() {
+    if (!drag) return;
+    drag = false;
+    clearTimeout(timer);
+    const v = edit;
+    Promise.resolve(send(v)).then(() => { if (edit === v) edit = null; render(); });
+  }
+  el.addEventListener('pointerup', drop);
+  el.addEventListener('pointercancel', drop);
+  return render;
+}
+async function postJson(path, body) {
+  try {
+    const r = await (await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                         body: JSON.stringify(body || {}) })).json();
+    if (r.ok === false) toast(r.error || tr('not_saved'), 'error');
+    return r;
+  } catch (e) {
+    toast(tr('not_saved_noresp'), 'error');
+    return { ok: false };
+  }
+}
+const renderVol = slider('volRange', 'volNum', () => ui.status.volume,
+  v => (DEMO ? (ui.status.volume = v) : postJson('/api/volume', { volume: v })));
+const renderAlarmVol = slider('alarmVolRange', 'alarmVolNum', () => ui.alarms.volume,
+  v => (DEMO ? (ui.alarms.volume = v) : postJson('/api/alarm-volume', { volume: v })));
+
+/* ---- countdowns, alarms and reminders (alarms.py: the client keeps and rings them) ---- */
+const KIND_ICON = { timer: 'ic_timer', alarm: 'ic_alarm', reminder: 'ic_reminder' };
+const TONE_KEYS = { coffee: 'tone_coffee', morning: 'tone_morning', bright: 'tone_bright', hop: 'tone_hop', marimba: 'tone_marimba' };
+const now_s = () => Date.now() / 1000;
+function hhmm(t) {
+  const d = new Date(t * 1000);
+  return pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+function dayText(t) {
+  const d = new Date(t * 1000), today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - today) / 86400000);
+  const word = { '-1': 'day_yesterday', 0: 'day_today', 1: 'day_tomorrow', 2: 'day_after' }[days];
+  return word ? tr(word) : lang === 'zh'
+    ? `${d.getMonth() + 1}月${d.getDate()}日 星期${WEEK[d.getDay()]}`
+    : `${DAY[d.getDay()]} ${d.getDate()} ${MONTH[d.getMonth()]}`;
+}
+function left(t) {
+  const s = Math.max(0, Math.round(t - now_s()));
+  const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60);
+  return (h ? h + ':' + pad(m) : m) + ':' + pad(s % 60);
+}
+function alarmRow(v) {
+  if (v.kind === 'timer') {
+    return [`<span data-left="${v.at}">${left(v.at)}</span>${v.label ? ' ' + esc(v.label) : ''}`,
+            tr('al_timer_sub', { t: hhmm(v.at) }) + (v.snoozed ? ' · ' + tr('snoozed') : '')];
+  }
+  const sub = [dayText(v.at)];
+  if (v.repeat) sub.push(esc(v.repeat));
+  if (v.snoozed) sub.push(tr('snoozed'));
+  if (v.kind === 'reminder') sub.push(v.spoken ? tr('rem_spoken') : v.spoken === false ? tr('rem_ring_only') : tr('rem_making'));
+  return [`${hhmm(v.at)}${v.label ? ' ' + esc(v.label) : ''}`, sub.join(' · ')];
+}
+function renderAlarms() {
+  const a = ui.alarms;
+  document.body.classList.toggle('alarms-paused', !a.synced);
+  document.body.classList.toggle('ringing', !!a.ringing);
+  document.body.classList.toggle('has-timer', a.items.some(v => v.kind === 'timer'));
+  // home: the running countdowns and the next alarm or reminder
+  const timers = a.items.filter(v => v.kind === 'timer').slice(0, 3);
+  const next = a.items.find(v => v.kind !== 'timer');
+  const chips = timers.map(v => `<div class="na timer">${tr('ic_timer')} <b data-left="${v.at}">${left(v.at)}</b>${v.label ? esc(v.label) : ''}</div>`);
+  if (next) chips.push(`<div class="na">${tr(KIND_ICON[next.kind])} <b>${dayText(next.at)} ${hhmm(next.at)}</b>${esc(next.label || '')}</div>`);
+  if (!a.synced && a.items.length) chips.unshift(`<div class="na paused">${tr('alarm_paused')}</div>`);
+  $('nextAlarms').innerHTML = chips.join('');
+  // settings: the list, the tones, the missed ones
+  $('alarmCount').textContent = a.items.length ? tr('n_items', { n: a.items.length }) : '';
+  $('alarmList').innerHTML = a.items.length ? a.items.map(v => {
+    const [main, sub] = alarmRow(v);
+    return `<div class="al ${v.kind}"><i>${tr(KIND_ICON[v.kind])}</i><div class="al-text"><b>${main}</b><span>${sub}</span></div>` +
+      `<button class="al-del" data-id="${v.id}">${tr('del')}</button></div>`;
+  }).join('') : `<div class="alarm-empty">${tr('alarm_empty')}</div>`;
+  $('tones').innerHTML = Object.entries(a.tones || {}).map(([k, name]) =>
+    `<button data-tone="${esc(k)}" class="${k === a.tone ? 'on' : ''}">${esc(name)}</button>`).join('');
+  // home: the missed ones (newest first, at most 3 shown) until 知道了
+  $('missedBox').hidden = !a.missed.length;
+  $('missedList').innerHTML = a.missed.slice(0, 3).map(m =>
+    `<div class="mh"><b>${dayText(m.at)} ${hhmm(m.at)}</b>${KIND_ICON[m.kind] ? tr(KIND_ICON[m.kind]) : ''}${m.label ? ' · ' + esc(m.label) : ''}` +
+    `<small>${m.why === 'off' ? tr('missed_off') : m.kind === 'reminder' ? tr('missed_reminder') : tr('missed_alarm')}</small></div>`).join('') +
+    (a.missed.length > 3 ? `<div class="mh more">${tr('missed_more', { n: a.missed.length - 3 })}</div>` : '');
+  renderAlarmVol();
+  renderRing();
+  tickAlarms();
+}
+function renderRing() {
+  const r = ui.alarms.ringing;
+  if (!r) return;
+  const items = r.items || [];
+  $('ringKind').textContent = [...new Set(items.map(v => v.type))].join(tr('wd_join')) || tr('ic_alarm');
+  $('ringLabel').textContent = items.map(v => v.label).filter(Boolean).join(tr('wd_join'));
+  $('ringNote').textContent = (r.notes || []).join(tr('note_join'));
+}
+function tickAlarms() {
+  for (const el of document.querySelectorAll('[data-left]')) el.textContent = left(Number(el.dataset.left));
+  const timer = ui.alarms.items.find(v => v.kind === 'timer');
+  $('timerText').textContent = timer ? left(timer.at) : '';
+}
+$('alarmList').addEventListener('click', e => {
+  const b = e.target.closest('.al-del');
+  if (!b) return;
+  if (!b.classList.contains('armed')) {
+    b.classList.add('armed');
+    b.textContent = tr('del_confirm');
+    setTimeout(() => { b.classList.remove('armed'); b.textContent = tr('del'); }, 4000);
+    return;
+  }
+  if (DEMO) { ui.alarms.items = ui.alarms.items.filter(v => v.id !== Number(b.dataset.id)); return renderAlarms(); }
+  postJson('/api/alarms/delete', { id: Number(b.dataset.id) }).then(r => { if (r.ok) toast(tr('deleted')); });
+});
+$('tones').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (DEMO) { ui.alarms.tone = b.dataset.tone; return renderAlarms(); }
+  postJson('/api/alarm-tone', { tone: b.dataset.tone }).then(() => postJson('/api/alarm-tone', { tone: b.dataset.tone, preview: true }));
+});
+$('missedClear').addEventListener('click', () => (DEMO ? handlers.alarms(Object.assign({}, ui.alarms, { missed: [] }))
+                                                       : postJson('/api/alarms/missed/clear')));
+$('ringStop').addEventListener('click', () => post('/api/alarms/stop'));
+$('ringSnooze').addEventListener('click', () => {
+  if (DEMO) return post('/api/alarms/snooze');
+  postJson('/api/alarms/snooze').then(r => { if (r.ok) toast(tr('snooze_ok')); });   // postJson shows the error
+});
+
 /* ---- settings: software update (update.py: the root updater installs, the page only asks) ---- */
 const UPD_STAGE = { preparing: 'upd_stage_preparing', downloading: 'upd_stage_downloading',
                     installing: 'upd_stage_installing', testing: 'upd_stage_testing',
@@ -804,7 +1021,10 @@ $('powerBtn').addEventListener('click', async () => {
   const r = await (await post('/api/power-off', {}))?.json?.();
   if (!r || !r.ok) toast((r && r.error) || tr('power_fail'), 'error');
 });
-$('settingsClose').addEventListener('click', () => $('settings').classList.remove('on'));
+$('settingsClose').addEventListener('click', () => {
+  $('settings').classList.remove('on');
+  if (!DEMO) postJson('/api/alarm-tone', { stop: true });   // a tone being tried stops with the settings
+});
 $('reportPill').addEventListener('click', () => { post('/api/reports/play'); toast(tr('report_now')); });
 
 /* ---- right side: welcome screen or conversation ---- */
@@ -957,7 +1177,8 @@ const handlers = {
     for (const k in seenThreads) delete seenThreads[k];
     seenThreads[s.thread.entry] = s.thread.messages;
     if (s.update) { ui.version = s.version; ui.update = s.update; }   // the demo's snapshots have none
-    renderModels(); renderThread(); renderStatus();
+    if (s.alarms) ui.alarms = s.alarms;
+    renderModels(); renderThread(); renderStatus(); renderAlarms();
     updateFinished((s.update || {}).job);
   },
   power(p) {
@@ -985,7 +1206,14 @@ const handlers = {
   },
   message: m => upsertMessage(m),
   toast: t => toast(t.text, t.kind),
-  volume: v => showVolume(v.volume),
+  volume(v) {
+    // a ring's own volume (keys while it rings) is shown, but isn't the device volume
+    if (!v.ring) { ui.status.volume = v.volume; renderVol(); }
+    if (v.source !== 'page') showVolume(v.volume);
+  },
+  alarms(a) {
+    ui.alarms = a; renderAlarms();
+  },
   level(l) {
     level.target = ui.status.state === 'speaking' ? Math.min(1, l.out * 6) : micLevel(l.mic);
   },
@@ -1084,9 +1312,27 @@ const demo = DEMO === null ? null : (() => {
     handlers.level({ mic: v * .07, out: v * .17 });
   }, 100);
 
+  const alarmsDemo = () => ({
+    synced: true, volume: 70, tone: 'coffee',
+    tones: Object.fromEntries(Object.entries(TONE_KEYS).map(([k, key]) => [k, tr(key)])), ringing: null,
+    items: [
+      { id: 3, kind: 'timer', type: tr('ic_timer'), label: tr('demo_egg'), at: now() + 271, repeat: '', snoozed: false },
+      { id: 1, kind: 'alarm', type: tr('ic_alarm'), label: tr('demo_wake'), at: now() + 9 * 3600, repeat: tr('demo_repeat'), snoozed: false },
+      { id: 2, kind: 'reminder', type: tr('ic_reminder'), label: tr('demo_laundry'), at: now() + 26 * 3600, repeat: '', snoozed: false, spoken: true },
+    ],
+    missed: [{ kind: 'reminder', label: tr('demo_meds'), at: now() - 3 * 3600, why: 'unanswered', noted: now() - 3 * 3600 },
+             { kind: 'alarm', label: tr('demo_wake'), at: now() - 20 * 3600, why: 'off', noted: now() - 20 * 3600 }],
+  });
   const steps = [
-    ['idle', 4000, () => handlers.snapshot({ status: { state: 'idle', connected: false, uploading: false },
-                                              models: { current: options[0], options }, thread: { entry: options[0].entry, messages: [] } })],
+    ['idle', 4000, () => {
+      handlers.snapshot({ status: { state: 'idle', connected: false, uploading: false, volume: 60 }, alarms: alarmsDemo(),
+                          models: { current: options[0], options }, thread: { entry: options[0].entry, messages: [] } });
+    }],
+    ['settings', 3000, () => $('settings').classList.add('on')],
+    [null, 300, () => $('settings').classList.remove('on')],
+    ['ring', 4000, () => handlers.alarms(Object.assign(alarmsDemo(), {
+      ringing: { items: [alarmsDemo().items[1]], notes: [], started: now() } }))],
+    [null, 300, () => handlers.alarms(alarmsDemo())],
     ['connecting', 1600, () => state('connecting', false)],
     ['listening', 3200, () => state('listening')],
     [null, 500, () => say('user', "What's the weather in Wellington tomorrow? Good for a hike?")],
@@ -1146,6 +1392,7 @@ const demo = DEMO === null ? null : (() => {
     else if (path === '/api/text') answer(body.text);
     else if (path === '/api/abort') { done(true); state('idle'); }
     else if (path === '/api/end') { done(); state('idle', false); }
+    else if (path.startsWith('/api/alarms/')) handlers.alarms(Object.assign({}, ui.alarms, { ringing: null }));
     return Promise.resolve();
   }
 

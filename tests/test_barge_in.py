@@ -3,6 +3,7 @@
 Runs without the device's audio stack (sound card, libopus, WebRTC APM and sherpa-onnx are stubbed):
   uv run --no-project --with numpy --with soxr --with websockets --with aiohttp --with pytest --with pytest-asyncio \
       python -m pytest -q tests
+(on a Mac add DYLD_FALLBACK_LIBRARY_PATH=/opt/homebrew/lib so test_alarms also decodes the real tone files)
 """
 import asyncio
 import time
@@ -86,6 +87,7 @@ def make_client():
     c.verifier = None
     c.speech_end = 0.0
     c.connecting = asyncio.Lock()
+    c.volume, c.ring, c.preview = 60, None, None
 
     async def no_models():
         pass

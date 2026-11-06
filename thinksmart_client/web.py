@@ -85,6 +85,54 @@ def make_app(client: Client):
             return web.json_response({'ok': False, 'error': str(e)}, status=400)
         return web.json_response({'ok': True, 'screen_off': value})
 
+    async def volume(request):
+        body = await request.json()
+        try:
+            value = await client.set_volume(body.get('volume'))
+        except (TypeError, ValueError) as e:
+            return web.json_response({'ok': False, 'error': str(e)}, status=400)
+        return web.json_response({'ok': True, 'volume': value})
+
+    async def alarm_volume(request):
+        body = await request.json()
+        try:
+            value = await client.set_alarm_volume(body.get('volume'))
+        except (TypeError, ValueError) as e:
+            return web.json_response({'ok': False, 'error': str(e)}, status=400)
+        return web.json_response({'ok': True, 'volume': value})
+
+    async def alarm_tone(request):
+        body = await request.json()
+        try:
+            if body.get('stop'):
+                await client._stop_preview()      # the settings closed while a tone was being tried
+            elif body.get('preview'):
+                await client.preview_tone(body.get('tone'))
+            else:
+                client.set_alarm_tone(body.get('tone'))
+        except ValueError as e:
+            return web.json_response({'ok': False, 'error': str(e)}, status=400)
+        return web.json_response({'ok': True})
+
+    async def alarm_delete(request):
+        body = await request.json()
+        try:
+            item = await client.delete_alarm(int(body.get('id')))
+        except (TypeError, ValueError):
+            return web.json_response({'ok': False, 'error': 'id must be a number'}, status=400)
+        return web.json_response({'ok': bool(item), **({} if item else {'error': client.tr('alarm_gone')})})
+
+    async def alarm_snooze(_request):
+        found = await client.snooze_alarm()
+        return web.json_response({'ok': bool(found), **({} if found else {'error': client.tr('snooze_none')})})
+
+    async def alarm_stop(_request):
+        return web.json_response({'ok': await client.stop_alarm()})
+
+    async def alarm_missed_clear(_request):
+        client.clear_missed()
+        return web.json_response({'ok': True})
+
     async def clear_history(request):
         body = await request.json()
         return web.json_response(await client.clear_history(bool(body.get('memory_only'))))
@@ -127,6 +175,13 @@ def make_app(client: Client):
     app.router.add_post('/api/sleep', sleep_setting)
     app.router.add_post('/api/brightness', brightness)
     app.router.add_post('/api/screen-off', screen_off)
+    app.router.add_post('/api/volume', volume)
+    app.router.add_post('/api/alarm-volume', alarm_volume)
+    app.router.add_post('/api/alarm-tone', alarm_tone)
+    app.router.add_post('/api/alarms/delete', alarm_delete)
+    app.router.add_post('/api/alarms/snooze', alarm_snooze)
+    app.router.add_post('/api/alarms/stop', alarm_stop)
+    app.router.add_post('/api/alarms/missed/clear', alarm_missed_clear)
     app.router.add_post('/api/reports/play', action(client.play_reports))
     app.router.add_post('/api/history/clear', clear_history)
     app.router.add_get('/api/health', health)

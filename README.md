@@ -6,11 +6,12 @@
 
 ## Language / 语言
 
-`language`（用户配置 `~/.config/thinksmart-client/config.json`，默认 `"en"`）决定四件事：
+`language`（用户配置 `~/.config/thinksmart-client/config.json`，默认 `"en"`）决定五件事：
 
 - **唤醒词**：`en` 用 gigaspeech 模型（`models/kws-en/`，BPE 关键词，默认 `Hey Computer`）；`zh` 用 wenetspeech 模型（`models/kws-zh/`，拼音关键词，默认「小麦小麦」）。换 `language` 时若没有自定义 `wake_words` / `kws_model_dir`，自动取该语言的默认值。
 - **界面文字**：屏幕页面（`web/v2/`、`/v1`）和客户端 toast / 报错（`thinksmart_client/i18n.py`），语言来自 `/events` 快照里的 `status.language` 与 `status.wake_label`。
 - **给模型的设备工具说明**（`thinksmart_client/mcp.py`）：英文界面配英文提示词，模型才听得懂「turn the volume down」。
+- **闹钟和提醒的文字**（`thinksmart_client/alarms.py`、`i18n.py`）：报时（明天 07:00 / tomorrow (Wed 4 Nov) 07:00）、循环说明、错过的备注、提醒默认句、铃声名和报错都跟着 `language`；页面和模型看到的是同一套。
 - **唤醒二次确认**（`wake_verify`）：`en` 比对识别文本里的英文单词，`zh` 比对拼音。
 
 改完重启客户端生效：`sudo systemctl restart thinksmart-client`。想换唤醒词，直接写 `wake_words`（格式见 `config.py` 注释）。
@@ -27,7 +28,8 @@
 | `thinksmart_client/wake_verify.py` | 唤醒二次确认（默认关，`wake_verify: 'hub'` 打开）：命中后把最近 3 秒交给网关识别（`POST /kiosk/asr`），按 `language` 比对唤醒词（`en` 比英文单词，`zh` 按拼音）；`pinyin.txt` 是拼音比对用的常用字表（`eval/wake/make_pinyin.py` 生成） |
 | `eval/wake/` | 唤醒评测：漏唤醒率、误唤醒率，见其中 README |
 | `thinksmart_client/hub.py` | 小智 WebSocket 协议（hello 只声明 `mcp`：不让网关一听到声音就打断回复） |
-| `thinksmart_client/mcp.py` | 给模型用的设备工具：音量、睡眠时段、屏幕亮度 |
+| `thinksmart_client/mcp.py` | 给模型用的设备工具：音量、睡眠时段、屏幕亮度、倒计时/闹钟/提醒（新建、查看、取消、再睡）、闹钟音量 |
+| `thinksmart_client/alarms.py` | 倒计时、闹钟、提醒（共用一种数据，可循环：每天、工作日、每周几、每月几号）：模型只传意思，几点由这里算；存在 `~/.local/share/thinksmart-client/alarms/`（临时文件 + fsync + 改名，防断电）；系统对时前不判断；关机错过不到 1 小时的开机补响一次；闹钟和倒计时没人停就响 10 分钟，提醒是短钢琴和弦加念内容、反复 3 分钟；错过的显示在首页，点「知道了」清掉；铃声 5 选 1：钢琴曲「咖啡时光」（默认）「晨曦」「元气早晨」「阳光小跳跃」和程序合成的木琴 |
 | `thinksmart_client/device.py` | 屏幕和按键：给系统熄屏程序写提示（对话中不熄屏、用户设的自动熄屏（1/3/5/10/30 分钟或不熄，默认 5 分钟，触摸和对话结束都按它）、唤醒词亮屏、睡眠时段调暗、用户设的亮度 0-100），读音量键和麦克风开关 |
 | `thinksmart_client/sleep.py` | 睡眠时段（可跨午夜）：回复音量减半、屏幕调暗、补报不主动念；设置存在用户配置里（`config.save`），页面设置页和语音工具都能改 |
 | `thinksmart_client/opus.py` | 系统 libopus 的 ctypes 封装 |
@@ -38,12 +40,15 @@
 
 ## 接口（只监听本机）
 
-- `GET /events`：事件流，`snapshot`、`state`、`message`、`thread`、`model`、`level`、`toast`、`volume`
+- `GET /events`：事件流，`snapshot`、`state`、`message`、`thread`、`model`、`level`、`toast`、`volume`（`source`：`key`/`voice`/`page`；`ring` 为 true 是响铃时音量键调的这一次铃声）、`alarms`（列表、错过的、是否对过时、正在响的、闹钟音量和铃声）
 - `POST /api/wake`、`/api/end`、`/api/abort`、`/api/ptt/start`、`/api/ptt/stop`
 - `POST /api/text {"text": "..."}`：文字提问（服务端按识别出的话处理）
 - `POST /api/model {"kind": "...", "vendor": "..."}`：切换模型（转给服务端的 `/kiosk/llm/use`）
 - `POST /api/brightness {"level": 0-100}`：屏幕亮度（存用户配置，默认 100，没有自动亮度；睡眠时段内设的亮度用到时段结束）
 - `POST /api/screen-off {"enabled": true, "minutes": 1|3|5|10|30}`：自动熄屏（两个字段可以只传一个；存用户配置，默认开、5 分钟；关掉就不熄屏）
+- `POST /api/volume {"volume": 0-100}`：设备音量（和音量键、语音同一个值；响铃时改的是响完要恢复的那个）
+- `POST /api/alarm-volume {"volume": 0-100}`：闹钟音量（存用户配置，默认 70）；`POST /api/alarm-tone {"tone": "coffee|morning|bright|hop|marimba", "preview": false}`：选铃声，`preview` 为 true 时用闹钟音量试听一段（前 8 秒），`{"stop": true}` 停止试听（关设置页时页面会发）
+- `POST /api/alarms/delete {"id": n}`、`/api/alarms/stop`、`/api/alarms/snooze`（正在响或 15 分钟内响过的那条 10 分钟后再响）、`/api/alarms/missed/clear`
 - `POST /api/power-off`：关机（`systemctl halt`，插着电也不会自己重新开机，屏幕变黑后等 10 秒再拔电源；正在更新时不执行）。页面先收到 `power {"state": "off"}` 显示「正在关机」
 - `POST /api/history/clear {}` 或 `{"memory_only": true}`：清除聊天记录（转给服务端的 `/kiosk/chat/clear`，只清服务端本机存的所有模型的记录和总结记忆，Claude Code、Grok Bot 自己的会话不动；`memory_only` 只清记忆）。聊天页的记录来自服务端存的 `GET /kiosk/chat/history`（每个模型最近 50 条），没连着时载入，断开、重启后还在；说「清除聊天记录」确认后服务端发 `{"type": "chat_history", "state": "cleared"}`，页面清空
 
@@ -53,6 +58,7 @@
 - `models/kws-zh/`：sherpa-onnx 中文唤醒词模型（wenetspeech），Apache-2.0
 - `models/kws-en/`：sherpa-onnx 英文唤醒词模型（gigaspeech），Apache-2.0
 - `web/logos/`：LobeHub icons 1.95.1，MIT
+- `web/sounds/alarm-*.ogg`（Ogg Opus 64 kbit/s，客户端用系统 libopus 解码）：闹钟铃声（原创曲「咖啡时光」「晨曦」「元气早晨」「阳光小跳跃」和提醒用的短和弦），用 [Salamander Grand Piano V3](https://freepats.zenvoid.org/Piano/acoustic-grand-piano.html) 的采样渲染（Alexander Holm，CC BY 3.0）；渲染脚本在 `tools/ringtone/`
 - 依赖：numpy、sounddevice、soxr、websockets、aiohttp、sherpa-onnx
 
 ## 许可

@@ -26,6 +26,11 @@
         <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg>
         <span id="reportText">1 report waiting</span>
       </button>
+      <div class="timer-chip" id="timerChip">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="13.5" r="7.5"/><path d="M12 10v3.5l2.5 1.5M9.5 3h5"/></svg>
+        <span id="timerText"></span>
+      </div>
       <div class="sleep-chip" id="sleepChip">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
@@ -81,6 +86,11 @@
         <div class="greet" id="greet">Hi</div>
         <div class="big-time" id="bigTime">--:--</div>
         <div class="big-date" id="bigDate"></div>
+        <div class="next-alarms" id="nextAlarms"></div>
+        <div class="missed-home" id="missedBox">
+          <div class="mh-head"><b data-i18n="missed_head">Missed alarms and reminders</b><button class="mh-ok" id="missedClear" data-i18n="missed_ok">Got it</button></div>
+          <div class="mh-list" id="missedList"></div>
+        </div>
         <div class="try" data-i18n="try_ask">Try asking me something</div>
         <div class="chips" id="chips"></div>
       </div>
@@ -138,6 +148,29 @@
       </div>
       <p class="opt-note" id="brightNote"></p>
     </div>
+    <div class="bright vol">
+      <div class="bright-head"><b data-i18n="vol_label">Device volume</b><span class="bright-num" id="volNum"></span></div>
+      <div class="bright-row">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/></svg>
+        <input type="range" class="range" id="volRange" min="0" max="100" step="1" aria-label="Device volume" data-i18n-aria="vol_label">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>
+      </div>
+      <div class="bright-head"><b data-i18n="alarm_vol_label">Alarm volume</b><span class="bright-num" id="alarmVolNum"></span></div>
+      <div class="bright-row">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13.5" r="6.5"/><path d="M12 10.5v3l2 1.2"/></svg>
+        <input type="range" class="range" id="alarmVolRange" min="0" max="100" step="1" aria-label="Alarm volume" data-i18n-aria="alarm_vol_label">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 10v3.5l2.5 1.5M4 5.5 6.5 3M20 5.5 17.5 3"/></svg>
+      </div>
+      <p class="opt-note" data-i18n="vol_note">Device volume is the volume the assistant speaks at — the same one the volume keys and your voice change. Alarm volume is only for countdowns, alarms and reminders: a ring switches to it and back when it ends; pressing the keys during a ring changes just that ring.</p>
+    </div>
+    <div class="alarms-card">
+      <div class="bright-head"><b data-i18n="alarms_head">Alarms and reminders</b><span class="bright-num" id="alarmCount"></span></div>
+      <p class="alarm-warn" id="alarmWarn" data-i18n="alarm_warn">The device clock isn't synced with the network yet — alarms pause and resume on their own</p>
+      <div class="alarm-list" id="alarmList"></div>
+      <p class="opt-note" data-i18n="alarm_say_hint">Say things like "{wake}, wake me at 7 tomorrow", "count down 5 minutes", "remind me to hang the laundry in 10 minutes", "call me at 7:30 on workdays", "what alarms do I have", "cancel tomorrow's alarm"</p>
+      <div class="bright-head"><b class="sub" data-i18n="tones_head">Ring tone</b><span class="bright-num" data-i18n="tone_tap">Tap to hear it</span></div>
+      <div class="minutes tones" id="tones"></div>
+    </div>
     <div class="opt">
       <div class="opt-text">
         <b data-i18n="off_label">Auto screen-off</b>
@@ -189,6 +222,19 @@
   </div>
 </div>
 
+<div class="ring" id="ring">
+  <svg class="ring-bell" width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/></svg>
+  <div class="ring-kind" id="ringKind" data-i18n="ic_alarm">Alarm</div>
+  <div class="ring-time" id="ringTime">--:--</div>
+  <div class="ring-label" id="ringLabel"></div>
+  <div class="ring-note" id="ringNote"></div>
+  <div class="ring-btns">
+    <button class="ring-snooze" id="ringSnooze" data-i18n="ring_snooze">Snooze 10 minutes</button>
+    <button class="ring-stop" id="ringStop" data-i18n="ring_stop">Stop</button>
+  </div>
+  <p class="ring-hint" id="ringHint" data-i18n="ring_hint">You can also say the wake word to stop it</p>
+</div>
 <div class="power-off" id="powerOff"><b data-i18n="power_now">Shutting down</b><span data-i18n="power_wait">Wait 10 seconds after the screen goes dark, then unplug</span></div>
 <div class="toast" id="toast"></div>
 <div class="hud" id="hud">

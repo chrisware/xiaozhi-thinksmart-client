@@ -15,8 +15,6 @@ import struct
 import time
 from pathlib import Path
 
-from . import mcp
-
 log = logging.getLogger(__name__)
 
 HINT_PATH = Path(os.environ.get('XDG_RUNTIME_DIR', '/run/user/1000')) / 'thinksmart-screen.json'
@@ -52,6 +50,7 @@ class Screen:
 
     def __init__(self):
         self.held = None
+        self.ringing = False         # an alarm rings: on until it stops, whatever the conversation does
         self.dimmed = False
         self.level = 100             # the user's 0-100
         self.idle = 300              # the user's screen-off in seconds, 0: never
@@ -65,6 +64,13 @@ class Screen:
     def release(self):
         if self.held is not False:
             self.held = False
+            self._write(activity=True)
+
+    def alarm(self, on):
+        """An alarm rings: light the screen (it may be blank) and keep it on; when it stops, blank after
+        the user's screen-off."""
+        if self.ringing != on:
+            self.ringing = on
             self._write(activity=True)
 
     def poke(self):
@@ -89,9 +95,9 @@ class Screen:
     def _write(self, activity):
         if activity:
             self._seq += 1
-        hint = {'hold': bool(self.held), 'dim': self.dimmed, 'seq': self._seq,
+        hint = {'hold': bool(self.held or self.ringing), 'dim': self.dimmed, 'seq': self._seq,
                 'brightness': self.level, 'idle': self.idle}
-        if not self.held and self.idle:
+        if not hint['hold'] and self.idle:
             hint['after'] = self.idle   # for a blanker older than "idle": the time after a conversation
         try:
             tmp = HINT_PATH.with_suffix('.tmp')
@@ -116,14 +122,15 @@ def input_device(name):
 
 
 class Keys:
-    """Volume up (gpio-keys), volume down (pm8941_resin) and the mic-mute switch (gpio-keys)."""
+    """Volume up (gpio-keys), volume down (pm8941_resin) and the mic-mute switch (gpio-keys).
+    on_step(±VOLUME_STEP) is a coroutine: the client knows whether an alarm is ringing (the keys then
+    change only that ring's volume)."""
 
-    def __init__(self, on_volume, on_mic):
-        self.on_volume = on_volume
+    def __init__(self, on_step, on_mic):
+        self.on_step = on_step
         self.on_mic = on_mic
         self.mic_on = True
         self._fds = []
-        self._lock = asyncio.Lock()
 
     def start(self):
         loop = asyncio.get_running_loop()
@@ -160,17 +167,7 @@ class Keys:
         for i in range(0, len(data) - EVENT.size + 1, EVENT.size):
             _sec, _usec, etype, code, value = EVENT.unpack_from(data, i)
             if etype == EV_KEY and code in (KEY_VOLUMEUP, KEY_VOLUMEDOWN) and value in (1, 2):
-                asyncio.create_task(self._step(VOLUME_STEP if code == KEY_VOLUMEUP else -VOLUME_STEP))
+                asyncio.create_task(self.on_step(VOLUME_STEP if code == KEY_VOLUMEUP else -VOLUME_STEP))
             elif etype == EV_SW and code == SW_MIC:
                 self.mic_on = bool(value)
                 self.on_mic(self.mic_on)
-
-    async def _step(self, delta):
-        # key repeat fires every ~100 ms: one change at a time, each from the current volume
-        async with self._lock:
-            current = await mcp.get_volume()
-            if current is None:
-                return
-            volume = max(0, min(100, current + delta))
-            await mcp.set_volume(volume)
-        self.on_volume(volume)

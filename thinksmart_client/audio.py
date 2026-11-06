@@ -137,8 +137,9 @@ class Player:
                     break
                 kept.append(c)
                 total += len(c)
-            if total <= keep:
+            if total <= keep and len(kept) == len(self._chunks):
                 return   # nothing beyond keep_seconds
+            # (total == keep with chunks after it: what is left of an earlier cut, then new sound to drop)
             kept[-1] = kept[-1][:len(kept[-1]) - (total - keep)]
             # fade out the last FADE samples of what is kept (they may span the ends of two chunks)
             down, left = _ramp(FADE)[::-1], FADE
@@ -247,8 +248,8 @@ class Audio:
 
 
 def load_wav(path, gain=1.0):
-    """A local sound (chime, short replies) as 48 kHz stereo float32."""
-    with wave.open(str(path)) as w:
+    """A local sound (chime, short replies, a reminder's words; a path or a file object) as 48 kHz stereo float32."""
+    with wave.open(path if hasattr(path, 'read') else str(path)) as w:
         rate, ch, width = w.getframerate(), w.getnchannels(), w.getsampwidth()
         raw = w.readframes(w.getnframes())
     dtype = {2: np.int16, 4: np.int32}[width]

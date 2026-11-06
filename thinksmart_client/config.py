@@ -57,6 +57,8 @@ DEFAULTS = {
     'brightness': 100,    # the screen's 0-100, set on the page or by voice (no automatic brightness: the user asked)
     # blank this long after the last touch or conversation (device.SCREEN_OFF_MINUTES); off: never
     'screen_off': {'enabled': True, 'minutes': 5},
+    'alarm_volume': 70,   # countdowns, alarms and reminders ring at this, whatever the device volume (alarms.py)
+    'alarm_tone': 'coffee',   # alarms.TONES
 }
 
 # Wake-word settings for the other languages, applied over DEFAULTS by load()/for_language()

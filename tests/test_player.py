@@ -82,3 +82,14 @@ def test_trim_with_less_queued_than_kept_changes_nothing():
     p.push(x)
     p.trim(1.0)
     np.testing.assert_array_equal(play(p, 5)[:len(x)], x[:, 0])
+
+
+def test_a_second_trim_right_after_new_sound_drops_it():
+    """trim(0) leaves the last FADE samples fading out; sound pushed after them must go on the next trim."""
+    p = Player()
+    p.push(np.full((OUT_RATE, 2), 0.5, np.float32))
+    p.pull(480)
+    p.trim(0)
+    p.push(np.full((OUT_RATE, 2), 0.5, np.float32))
+    p.trim(0)
+    assert p.buffered() * OUT_RATE <= FADE
