@@ -59,6 +59,7 @@ DEFAULTS = {
     'screen_off': {'enabled': True, 'minutes': 5},
     'alarm_volume': 70,   # countdowns, alarms and reminders ring at this, whatever the device volume (alarms.py)
     'alarm_tone': 'coffee',   # alarms.TONES
+    'bluetooth': True,    # the Bluetooth speaker switch (bt.py): off powers the adapter down
 }
 
 # Wake-word settings for the other languages, applied over DEFAULTS by load()/for_language()
